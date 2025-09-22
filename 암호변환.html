@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>AES-256 파일 암호화 도구</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; }
+    textarea, input, button { width: 100%; padding: 10px; margin: 10px 0; font-family: monospace; }
+    .output { background: #f4f4f4; padding: 10px; white-space: pre-wrap; border: 1px solid #ccc; cursor: pointer; }
+    .output:hover { background: #e8f0fe; }
+    .warning { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <h2>🔐 AES-256 암복호화 도구 (자동 IV)</h2>
+
+  <button onclick="resetFields()">🔄 초기화</button>
+
+  <label>📂 저장된 키 선택</label>
+  <select id="savedKeys" onchange="loadSavedKey()">
+    <option value="">-- 저장된 키 없음 --</option>
+  </select>
+  <button onclick="deleteSelectedKey()">선택 키 삭제</button>
+
+
+  <label>암호화 모드 선택</label>
+  <select id="modeSelect">
+    <option value="CBC">CBC</option>
+    <option value="ECB">ECB</option>
+    <option value="CTR">CTR</option>
+    <option value="GCM">GCM</option>
+  </select>
+  
+  <label>🔑 키 사이즈 선택</label>
+  <select id="keySizeSelect" onchange="adjustKeyLength()">
+    <option value="256" selected>256비트 (32자리)</option>
+    <option value="192">192비트 (24자리)</option>
+    <option value="128">128비트 (16자리)</option>
+  </select>
+
+  <label>🔑 암호 키 (32자리)</label>
+  <input type="text" id="key" maxlength="32" placeholder="선택한 키 사이즈에 맞게 입력" oninput="validateKey()">
+  <div id="keyWarning" class="warning"></div>
+
+  <label>🔁 IV (앞 16자리)</label>
+  <input type="text" id="iv" maxlength="16" placeholder="예: 16자리 키 입력">
+
+  <label>📝 평문 입력</label>
+  <textarea id="plainText" placeholder="암호화할 텍스트 입력"></textarea>
+  <button onclick="encrypt()">암호화</button>
+
+  <label>🔒 암호문 입력</label>
+  <textarea id="cipherText" placeholder="복호화할 암호문 입력"></textarea>
+  <button onclick="decrypt()">복호화</button>
+
+  <label>📁 파일 선택 (.txt)</label>
+  <input type="file" id="fileInput" accept=".txt">
+  <button onclick="encryptFile()">파일 암호화</button>
+  <button onclick="decryptFile()">파일 복호화</button>
+
+  <h3>📦 결과 (클릭 시 복사됨)</h3>
+  <div class="output" id="resultBox" onclick="copyResult()">결과가 여기에 표시됩니다...</div>
+
+  <script>
+
+    function getRequiredKeyLength() {
+      const size = parseInt(document.getElementById("keySizeSelect").value);
+      return size / 8;
+    }
+
+    function adjustKeyLength() {
+      const keyInput = document.getElementById("key");
+      keyInput.value = "";
+      validateKey();
+    }
+
+    function validateKey() {
+      updateIV();
+      const key = document.getElementById("key").value;
+      const requiredLength = getRequiredKeyLength();
+      const warning = document.getElementById("keyWarning");
+      
+      if (key.length > requiredLength) {
+        document.getElementById("key").value = key.substring(0, requiredLength);
+      }
+      warning.innerText = key.length !== requiredLength ? `❗ 키는 정확히 ${requiredLength}자리여야 합니다.` : "";
+    }
+
+    function generateIV() {
+      const key = document.getElementById("key").value;
+      // const iv = CryptoJS.lib.WordArray.random(16).toString(CryptoJS.enc.Hex).substring(0, 16);
+      const iv = 
+      document.getElementById("iv").value = iv;
+    }
+
+    function resetFields() {
+      document.getElementById("key").value = "";
+      document.getElementById("iv").value = "";
+      document.getElementById("plainText").value = "";
+      document.getElementById("cipherText").value = "";
+      document.getElementById("resultBox").innerText = "결과가 여기에 표시됩니다...";
+      document.getElementById("keyWarning").innerText = "";
+    }
+
+
+    function updateIV() {
+      const key = document.getElementById("key").value;
+      const ivField = document.getElementById("iv");
+      const warning = document.getElementById("keyWarning");
+
+      
+      if(ivField.value.length===0){    
+        if (key.length < 32) {
+        } else {
+          warning.innerText = "";
+          ivField.value = key.substring(0, 16);
+        }
+      }
+    }
+    
+  function encrypt() {
+      const mode = document.getElementById("modeSelect").value;
+      const key = document.getElementById("key").value;
+      const iv = document.getElementById("iv").value;
+      const text = document.getElementById("plainText").value;
+      const requiredLength = getRequiredKeyLength();
+
+      if (key.length !== requiredLength) return alert(`키는 ${requiredLength}자리여야 합니다.`);
+      if (!text) return alert("암호화할 텍스트를 입력해주세요.");
+      
+      const keyWA = CryptoJS.enc.Utf8.parse(key);
+      const ivWA = CryptoJS.enc.Utf8.parse(iv);
+
+      let encrypted;
+      try {
+        switch (mode) {
+          case "ECB":
+            encrypted = CryptoJS.AES.encrypt(text, keyWA, {
+              mode: CryptoJS.mode.ECB,
+              padding: CryptoJS.pad.Pkcs7
+            });
+            break;
+          case "CBC":
+            encrypted = CryptoJS.AES.encrypt(text, keyWA, {
+              iv: ivWA,
+              mode: CryptoJS.mode.CBC,
+              padding: CryptoJS.pad.Pkcs7
+            });
+            break;
+          case "CTR":
+            encrypted = CryptoJS.AES.encrypt(text, keyWA, {
+              iv: ivWA,
+              mode: CryptoJS.mode.CTR,
+              padding: CryptoJS.pad.Pkcs7
+            });
+            break;
+          case "GCM":
+            alert("⚠️ 현재 GCM 모드를 기본 지원하지 않습니다. CTR 또는 CBC를 사용해주세요.");
+            return;
+        }
+        document.getElementById("resultBox").innerText = encrypted.toString();
+        document.getElementById("cipherText").value = encrypted.toString();
+      } catch (e) {
+        alert("❌ 암호화 실패: 입력값을 확인해주세요.");
+      }
+
+    }
+
+    function decrypt() {
+      const mode = document.getElementById("modeSelect").value;
+      const key = document.getElementById("key").value;
+      const iv = document.getElementById("iv").value;
+      const cipher = document.getElementById("cipherText").value;
+      const requiredLength = getRequiredKeyLength();
+
+      if (key.length !== requiredLength) return alert(`키는 ${requiredLength}자리여야 합니다.`);
+      if (!cipher) return alert("복호화할 암호문을 입력해주세요.");
+
+      const keyWA = CryptoJS.enc.Utf8.parse(key);
+      const ivWA = CryptoJS.enc.Utf8.parse(iv);
+
+      try {
+        let decrypted;
+        switch (mode) {
+          case "ECB":
+            decrypted = CryptoJS.AES.decrypt(cipher, keyWA, {
+              mode: CryptoJS.mode.ECB,
+              padding: CryptoJS.pad.Pkcs7
+            });
+            break;
+          case "CBC":
+            decrypted = CryptoJS.AES.decrypt(cipher, keyWA, {
+              iv: ivWA,
+              mode: CryptoJS.mode.CBC,
+              padding: CryptoJS.pad.Pkcs7
+            });
+            break;
+          case "CTR":
+            decrypted = CryptoJS.AES.decrypt(cipher, keyWA, {
+              iv: ivWA,
+              mode: CryptoJS.mode.CTR,
+              padding: CryptoJS.pad.Pkcs7
+            });
+            break;
+          case "GCM":
+            alert("⚠️ 현재 GCM 모드를 기본 지원하지 않습니다. CTR 또는 CBC를 사용해주세요.");
+            return;
+        }
+        const plain = decrypted.toString(CryptoJS.enc.Utf8);
+        if (!plain) throw new Error("복호화 실패");
+        document.getElementById("resultBox").innerText = plain;
+        document.getElementById("plainText").value = plain;
+      } catch (e) {
+        alert("❌ 복호화 실패: 키 또는 암호문을 확인해주세요.");
+      }
+
+    }
+
+
+    function encryptFile() {
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) return alert("파일을 선택해주세요.");
+      if (!validateKey()) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById("plainText").value = e.target.result;
+        encrypt();
+      };
+      reader.readAsText(file);
+    }
+
+    function decryptFile() {
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) return alert("파일을 선택해주세요.");
+      if (!validateKey()) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById("cipherText").value = e.target.result;
+        decrypt();
+      };
+      reader.readAsText(file);
+    }
+
+    function copyResult() {
+      const text = document.getElementById("resultBox").innerText;
+      if (!text || text.includes("결과가 여기에")) return;
+      navigator.clipboard.writeText(text).then(() => {
+        document.getElementById("resultBox").innerText = "✅ 복사됨!\n\n" + text;
+        setTimeout(() => {
+          document.getElementById("resultBox").innerText = text;
+        }, 1500);
+      });
+    }
+
+
+
+    function saveKeyToStorage(key) {
+    if (!key) return;
+    let keys = JSON.parse(localStorage.getItem("aesKeys") || "[]");
+    if (!keys.includes(key)) {
+      keys.push(key);
+      localStorage.setItem("aesKeys", JSON.stringify(keys));
+      updateSavedKeysDropdown();
+    }
+  }
+
+  function updateSavedKeysDropdown() {
+    const select = document.getElementById("savedKeys");
+    select.innerHTML = '<option value="">-- 저장된 키 없음 --</option>';
+    const keys = JSON.parse(localStorage.getItem("aesKeys") || "[]");
+    keys.forEach(k => {
+      const option = document.createElement("option");
+      option.value = k;
+      option.textContent = k;
+      select.appendChild(option);
+    });
+  }
+
+  function loadSavedKey() {
+    const selected = document.getElementById("savedKeys").value;
+    if (selected) {
+      document.getElementById("key").value = selected;
+      validateKey();
+    }
+  }
+
+  function deleteSelectedKey() {
+    const selected = document.getElementById("savedKeys").value;
+    if (!selected) return;
+    let keys = JSON.parse(localStorage.getItem("aesKeys") || "[]");
+    keys = keys.filter(k => k !== selected);
+    localStorage.setItem("aesKeys", JSON.stringify(keys));
+    updateSavedKeysDropdown();
+    document.getElementById("key").value = "";
+  }
+
+  window.onload = updateSavedKeysDropdown;
+
+  // 암호화/복호화 함수 내부에 추가:
+  saveKeyToStorage(key); // 키 저장
+
+  </script>
+
+</body>
+</html>

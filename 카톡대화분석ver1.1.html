@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>톡 대화 통계 분석기</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f9f9f9;
+      padding: 2em;
+    }
+    h2 { margin-bottom: 0.5em; }
+    #dropZone {
+      border: 2px dashed gray;
+      padding: 1em;
+      margin: 1em 0;
+      border-radius: 8px;
+      background: #fff;
+      text-align: center;
+    }
+    section {
+      background: #fff;
+      padding: 1em;
+      border-radius: 8px;
+      margin: 1em 0;
+      box-shadow: 0 0 5px #ccc;
+    }
+    li { margin: 0.3em 0; }
+    h3, h4 { margin-bottom: 0.5em; }
+    .summary, .section-title {
+      font-weight: bold;
+      margin-top: 2em;
+    }
+  </style>
+</head>
+<body>
+  <h2>📊 톡 대화 통계 + 입퇴장 분석기</h2>
+
+  <p>1️⃣ 대화기록 파일 선택:</p>
+  <input type="file" id="chatFile" accept=".txt" /><br><br>
+
+  <p>2️⃣ (선택) 인원.txt 파일을 드래그해서 아래 영역에 올려주세요</p>
+  <div id="dropZone">👥 인원.txt 파일 드래그 앤 드롭</div>
+
+  <div id="memberList"></div>
+  <div id="newMembers" class="section-title"></div>
+  <div id="leftMembers" class="section-title"></div>
+  <div id="summary" class="summary"></div>
+  <div id="monthlyStats"></div>
+  <div id="monthlyJoins" class="section-title"></div>
+  <script>
+    let chatMessages = [];
+    let memberList = null;
+
+    document.getElementById("dropZone").addEventListener("dragover", e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      e.currentTarget.style.background = "#e0f7fa";
+    });
+
+    document.getElementById("dropZone").addEventListener("dragleave", e => {
+      e.currentTarget.style.background = "#fff";
+    });
+
+    document.getElementById("dropZone").addEventListener("drop", async e => {
+      e.preventDefault();
+      e.currentTarget.style.background = "#fff";
+      const file = [...e.dataTransfer.files].find(f => f.name === "인원.txt");
+      if (!file) return alert("⚠️ 인원.txt 파일을 드롭해주세요.");
+      const text = await file.text();
+      memberList = text.split("\n").map(v => v.trim()).filter(Boolean);
+      document.getElementById("memberList").innerHTML =
+        "<p>📌 인원.txt 기준 인원:</p><ul>" +
+        memberList.map(n => `<li>${n}</li>`).join("") + "</ul>";
+      if (chatMessages.length > 0) process();
+    });
+
+    document.getElementById("chatFile").addEventListener("change", async function () {
+      const file = this.files[0];
+      if (!file) return;
+      const text = await file.text();
+      chatMessages = [];
+      const lines = text.split("\n");
+      let currentDate = null;
+
+      for (const line of lines) {
+        const dateMatch = line.match(/-+ (\d{4})년 (\d{1,2})월 (\d{1,2})일/);
+        const msgMatch = line.match(/\[(.+?)\] \[(오전|오후) (\d{1,2}):(\d{2})\] (.+)/);
+        if (dateMatch) {
+          const [_, y, m, d] = dateMatch;
+          currentDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        } else if (msgMatch && currentDate) {
+          const [, nickname, , , , message] = msgMatch;
+          chatMessages.push({ date: currentDate, nickname, message });
+        }else if (currentDate) {
+    // ✅ 대괄호 없는 시스템 메시지도 수집
+    chatMessages.push({ date: currentDate, nickname: null, message: line.trim() });
+  }
+      }
+
+      process();
+    });
+
+    function process() {
+    const joined = {}, left = {}, monthlyStats = {}, monthlyMoves = {};
+    const newMembers = [], leftMembers = [], totalStats = {};
+
+    const filteredMessages = chatMessages.filter(({ nickname }) =>
+      nickname !== null && (!memberList || memberList.includes(nickname))
+    );
+    const overallTotal = filteredMessages.length;
+
+    filteredMessages.forEach(({ date, nickname }) => {
+      const month = date.slice(0, 7);
+      if (!monthlyStats[month]) monthlyStats[month] = {};
+      if (!monthlyStats[month][nickname]) monthlyStats[month][nickname] = 0;
+      monthlyStats[month][nickname]++;
+      if (!totalStats[nickname]) totalStats[nickname] = 0;
+      totalStats[nickname]++;
+    });
+
+    // 정규식 기반 입퇴장 감지
+    chatMessages.forEach(({ date, message }) => {
+      const month = date.slice(0, 7);
+      if (!monthlyMoves[month]) monthlyMoves[month] = { joined: new Set(), left: new Set() };
+
+      const joinMatch = message.match(/^(.+?)님[이을] (들어왔습니다|초대했습니다)\.$/);
+      if (joinMatch) {
+        const name = joinMatch[1].trim();
+        joined[name] = (joined[name] || 0) + 1;
+        monthlyMoves[month].joined.add(name);
+      }
+
+      const leaveMatch = message.match(/^(.+?)님[이을] (나갔습니다|내보냈습니다)\.$/);
+      if (leaveMatch) {
+        const name = leaveMatch[1].trim();
+        left[name] = (left[name] || 0) + 1;
+        monthlyMoves[month].left.add(name);
+      }
+    });
+
+    const allNames = new Set([
+      ...Object.keys(joined),
+      ...Object.keys(left),
+      ...(memberList || [])
+    ]);
+
+    allNames.forEach(name => {
+      const join = joined[name] || 0;
+      const leave = left[name] || 0;
+
+      if (join === 0 && leave > 0) {
+        leftMembers.push(name);
+      } else if (join > 0 && join > leave) {
+        if (!memberList || !memberList.includes(name)) {
+          newMembers.push(name);
+        }
+      }
+    });
+
+    document.getElementById("newMembers").innerHTML =
+      "<p>✅ 현재 참여 중인 신규 유입 멤버:</p><ul>" +
+      newMembers.map(n => `<li>${n}</li>`).join("") + "</ul>";
+
+    document.getElementById("leftMembers").innerHTML = memberList
+      ? "<p>🚪 나간 인원 (인원.txt 기준 또는 강퇴자):</p><ul>" +
+        leftMembers.map(n => `<li>${n}</li>`).join("") + "</ul>"
+      : "";
+
+    const summary = document.getElementById("summary");
+    summary.innerHTML =
+      `<p>💬 총 대화량: <strong>${overallTotal}</strong>개 (${memberList ? "인원.txt 기준" : "전체 기준"})</p><ul>` +
+      rankList(totalStats).map(({ rank, nickname, count }) => {
+        const percent = ((count / overallTotal) * 100).toFixed(1);
+        return `<li><strong>${rank}위</strong> ${nickname}: ${count}개 (${percent}%)</li>`;
+      }).join("") + "</ul>";
+
+    // ✅ 대화 기록이 없는 인원 표시
+    const silentMembers = memberList
+      ? memberList.filter(name => !Object.keys(totalStats).includes(name))
+      : [];
+
+    if (silentMembers.length > 0) {
+      const silentSection = document.createElement("div");
+      silentSection.className = "section-title";
+      silentSection.innerHTML =
+        "<p>🤐 대화 기록이 없는 인원:</p><ul>" +
+        silentMembers.map(n => `<li>${n}</li>`).join("") + "</ul>";
+      summary.appendChild(silentSection);
+    }
+
+    const stats = document.getElementById("monthlyStats");
+    stats.innerHTML = "<h3>📈 월별 대화량 순위</h3>" +
+      Object.entries(monthlyStats).sort().map(([month, data]) => {
+        const monthTotal = Object.values(data).reduce((a, b) => a + b, 0);
+        const ranked = rankList(data);
+        return `<section><h4>${month} ▶ 총 ${monthTotal}개</h4><ul>` +
+          ranked.map(({ rank, nickname, count }) => {
+            const percent = ((count / monthTotal) * 100).toFixed(1);
+            return `<li><strong>${rank}위</strong> ${nickname}: ${count}개 (${percent}%)</li>`;
+          }).join("") + "</ul></section>";
+      }).join("");
+
+    const monthlyEl = document.getElementById("monthlyJoins");
+    monthlyEl.innerHTML = "<h3>📆 월별 입퇴장 내역</h3>" +
+      Object.entries(monthlyMoves).sort().map(([month, data]) => {
+        const joinedList = [...data.joined].sort().join(", ") || "없음";
+        const leftList = [...data.left].sort().join(", ") || "없음";
+        return `<section><h4>${month}</h4><ul>
+            <li>📥 신규 유입: ${joinedList}</li>
+            <li>🚪 나간 인원: ${leftList}</li>
+          </ul></section>`;
+      }).join("");
+  }
+
+    function rankList(obj) {
+      const entries = Object.entries(obj).sort((a, b) => b[1] - a[1]);
+      const ranked = [];
+      let currentRank = 1;
+      let prevCount = null;
+      entries.forEach(([nickname, count], i) => {
+        if (count !== prevCount) currentRank = i + 1;
+        ranked.push({ rank: currentRank, nickname, count });
+        prevCount = count;
+      });
+      return ranked;
+    }
+  </script>
+</body>
+</html>

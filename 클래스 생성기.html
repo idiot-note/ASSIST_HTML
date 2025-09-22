@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Java 생성자 자동 생성기</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; padding: 20px; }
+    textarea, pre { width: 100%; font-family: monospace; margin-top: 10px; }
+    button { margin-top: 10px; padding: 8px 16px; }
+  </style>
+</head>
+<body>
+  <h2>Java 클래스 → 생성자 자동 생성기</h2>
+  <label for="javaInput">Java 클래스 입력:</label>
+  <textarea id="javaInput" rows="12" placeholder="여기에 Java 클래스를 붙여넣으세요..."></textarea>
+  <button onclick="generateConstructor()">생성자 생성</button>
+
+  <h3>자동 생성된 생성자 코드:</h3>
+  <pre id="output"></pre>
+
+  <script>
+    function generateConstructor() {
+      const input = document.getElementById("javaInput").value;
+      const classMatch = input.match(/class\s+(\w+)/);
+      const className = classMatch ? classMatch[1] : "UnknownClass";
+
+      const fieldRegex = /private\s+\w+\s+(\w+)\s*=/g;
+      const fields = [];
+      let match;
+      while ((match = fieldRegex.exec(input)) !== null) {
+        fields.push(match[1]);
+      }
+
+      let result = `public ${className}(${className} dto) {\n`;
+      fields.forEach(field => {
+        result += `    this.${field} = dto.${field};\n`;
+      });
+      result += `}`;
+
+      document.getElementById("output").textContent = result;
+    }
+  </script>
+</body>
+</html>

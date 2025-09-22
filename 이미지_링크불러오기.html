@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>이미지 링크</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; }
+    input { width: 100%; padding: 10px; margin-bottom: 10px; }
+    img { max-width: 100%; border: 1px solid #ccc; display: block; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <h2>이미지 링크</h2>
+  <input type="text" id="imageUrl" placeholder="이미지 URL을 입력하세요">
+  <button onclick="updateImage()">이미지 불러오기</button>
+  <img id="previewImage" src="" alt="미리보기 이미지" onerror="handleImageError()" style="display:none;">
+
+  <script>
+    function updateImage() {
+      const url = document.getElementById('imageUrl').value;
+      const img = document.getElementById('previewImage');
+
+      if (url) {
+        img.src = url;
+        img.style.display = 'block';
+      } else {
+        img.style.display = 'none';
+      }
+    }
+
+    function handleImageError() {
+      alert("이미지를 불러오지 못했어요. 올바른 이미지 주소인지 확인해주세요.");
+      document.getElementById('previewImage').style.display = 'none';
+    }
+  </script>
+
+</body>
+</html>

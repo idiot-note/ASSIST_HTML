@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>ASCII ↔ HEX 변환기</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; padding: 20px; }
+    textarea, input, pre { width: 100%; font-family: monospace; margin-top: 10px; }
+    button { margin-top: 10px; padding: 8px 16px; }
+    .output-box {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin: 5px 0;
+      background-color: #f9f9f9;
+      cursor: pointer;
+    }
+  </style>
+  <script>
+    function asciiToHex() {
+      const input = document.getElementById("asciiInput").value;
+      const hex = input.split('').map(c =>
+        c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')
+      ).join(' ');
+      document.getElementById("asciiToHexResult").textContent = hex;
+    }
+
+    function hexToAscii() {
+      const input = document.getElementById("hexInput").value.replace(/\s+/g, '');
+      let result = '';
+      for (let i = 0; i < input.length; i += 2) {
+        const hexPair = input.slice(i, i + 2);
+        const char = String.fromCharCode(parseInt(hexPair, 16));
+        result += /[\x20-\x7E]/.test(char) ? char : '.';
+      }
+      document.getElementById("hexToAsciiResult").textContent = result;
+    }
+
+    function copyToClipboard(id) {
+      const text = document.getElementById(id).textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("복사 완료!");
+      });
+    }
+  </script>
+</head>
+<body>
+  <h1>ASCII ↔ HEX 변환기</h1>
+
+  <h2>1. ASCII → HEX</h2>
+  <input type="text" id="asciiInput" placeholder="예: ABC123">
+  <button onclick="asciiToHex()">변환</button>
+  <div id="asciiToHexResult" class="output-box" onclick="copyToClipboard('asciiToHexResult')">16진수 결과가 여기에 표시됩니다</div>
+
+  <h2>2. HEX → ASCII</h2>
+  <input type="text" id="hexInput" placeholder="예: 41 42 43 또는 414243">
+  <button onclick="hexToAscii()">변환</button>
+  <div id="hexToAsciiResult" class="output-box" onclick="copyToClipboard('hexToAsciiResult')">ASCII 결과가 여기에 표시됩니다</div>
+</body>
+</html>

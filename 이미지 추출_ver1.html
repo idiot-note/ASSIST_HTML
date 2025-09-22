@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이미지 클립보드 복사 및 저장</title>
+    <style>
+        #image-container {
+            margin: 20px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="image-container">
+        <img id="image" src="C:\Users\User\Pictures\2f8b42af483563e81f269c55a81f8d55c37d537a8f2c6f426591be6b8dc7b36a.png" alt="이미지">
+    </div>
+    <button id="copy-button">클립보드에 복사</button>
+    <button id="download-button">이미지 저장</button>
+
+    <script>
+        const copyButton = document.getElementById('copy-button');
+        const downloadButton = document.getElementById('download-button');
+        const image = document.getElementById('image');
+
+        // 클립보드에 이미지 복사 기능
+        copyButton.addEventListener('click', async () => {
+            try {
+                const response = await fetch(image.src);
+                const blob = await response.blob();
+                const item = new ClipboardItem({ 'image/png': blob });
+                await navigator.clipboard.write([item]);
+                alert('이미지가 클립보드에 복사되었습니다!');
+            } catch (error) {
+                console.error('클립보드 복사 실패:', error);
+            }
+        });
+
+        // 이미지 저장 기능
+        downloadButton.addEventListener('click', () => {
+            const a = document.createElement('a');
+            a.href = image.src;
+            a.download = 'downloaded_image.png'; // 저장할 파일 이름
+            a.click(); // 클릭 이벤트로 다운로드 시작
+        });
+    </script>
+</body>
+</html>

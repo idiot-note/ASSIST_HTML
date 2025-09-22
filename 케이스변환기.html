@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>케이스 변환기</title>
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+            align-items: flex-start; /* 상단 왼쪽 정렬 */
+        }
+        .input-result-row {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start; /* 상단 정렬 */
+            margin-bottom: 10px;
+        }
+        .input-box, .result-box {
+            width: 300px;
+            height: 400px;
+            display: block;
+        }
+        .input-box {
+            margin-right: 20px;
+        }
+        .radio-buttons {
+            margin-bottom: 10px;
+        }
+    </style>
+    <script>
+        // 카멜케이스를 스네이크 케이스로 변환하는 함수
+        function camelToSnake(str, toUpperCase) {
+            let result = str.replace(/([a-z0-9])([A-Z])/g, '$1_$2');
+            return toUpperCase ? result.toUpperCase() : result.toLowerCase();
+        }
+
+        // 스네이크 케이스를 카멜케이스로 변환하는 함수
+        function snakeToCamel(str, toUpperCase) {
+            let result = str.toLowerCase().replace(/(_[a-z])/g, function(match) {
+                return match[1].toUpperCase();
+            });
+            return toUpperCase ? result.charAt(0).toUpperCase() + result.slice(1) : result;
+        }
+
+        // 띄어쓰기를 카멜케이스로 변환하는 함수
+        function spaceToCamel(str) {
+            return str.toLowerCase().replace(/(\s+[a-z])/g, function(match) {
+                return match.trim().toUpperCase();
+            });
+        }
+
+        // 띄어쓰기를 스네이크 케이스로 변환하는 함수
+        function spaceToSnake(str) {
+            return str.toLowerCase().replace(/\s+/g, '_');
+        }
+
+        function convert(type, input) {
+            let result = '';
+
+            const toUpperCase = document.querySelector('input[name="caseOption"]:checked').value === 'upper';
+
+            if (type === 'camelToSnake' || type === 'snakeToCamel') {
+                if (type === 'camelToSnake') {
+                    result = camelToSnake(input, toUpperCase);
+                } else {
+                    result = snakeToCamel(input, toUpperCase);
+                }
+            } else {
+                if (type === 'spaceToCamel') {
+                    result = spaceToCamel(input);
+                } else if (type === 'spaceToSnake') {
+                    result = spaceToSnake(input);
+                }
+            }
+
+            document.getElementById(type + 'Result').value = result;
+        }
+
+        window.onload = function() {
+            document.getElementById('camelToSnakeInput').addEventListener('input', function() {
+                convert('camelToSnake', this.value);
+            });
+            document.getElementById('snakeToCamelInput').addEventListener('input', function() {
+                convert('snakeToCamel', this.value);
+            });
+            document.getElementById('spaceToCamelInput').addEventListener('input', function() {
+                convert('spaceToCamel', this.value);
+            });
+            document.getElementById('spaceToSnakeInput').addEventListener('input', function() {
+                convert('spaceToSnake', this.value);
+            });
+            
+            // 결과 에디트 박스를 클릭하면 전체 선택
+            document.getElementById('camelToSnakeResult').addEventListener('click', function() {
+                this.select();
+            });
+            document.getElementById('snakeToCamelResult').addEventListener('click', function() {
+                this.select();
+            });
+            document.getElementById('spaceToCamelResult').addEventListener('click', function() {
+                this.select();
+            });
+            document.getElementById('spaceToSnakeResult').addEventListener('click', function() {
+                this.select();
+            });
+            document.getElementById('camelToSnakeInput').addEventListener('click', function() {
+                this.select();
+            });
+            document.getElementById('snakeToCamelInput').addEventListener('click', function() {
+                this.select();
+            });
+            document.getElementById('spaceToCamelInput').addEventListener('click', function() {
+                this.select();
+            });
+            document.getElementById('spaceToSnakeInput').addEventListener('click', function() {
+                this.select();
+            });
+        };
+    </script>
+</head>
+<body>
+    <h1>케이스 변환기</h1>
+
+    <div class="radio-buttons">
+        <input type="radio" id="caseLower" name="caseOption" value="lower" checked>
+        <label for="caseLower">소문자</label>
+        <input type="radio" id="caseUpper" name="caseOption" value="upper">
+        <label for="caseUpper">대문자</label>
+    </div>
+
+    <div class="container">
+        <h2>카멜케이스 → 스네이크 케이스</h2>
+        <div class="input-result-row">
+            <textarea id="camelToSnakeInput" placeholder="텍스트를 입력하세요" class="input-box"></textarea>
+            <textarea id="camelToSnakeResult" placeholder="결과" class="result-box"></textarea>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>스네이크 케이스 → 카멜케이스</h2>
+        <div class="input-result-row">
+            <textarea id="snakeToCamelInput" placeholder="텍스트를 입력하세요" class="input-box"></textarea>
+            <textarea id="snakeToCamelResult" placeholder="결과" class="result-box"></textarea>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>띄어쓰기 → 카멜케이스</h2>
+        <div class="input-result-row">
+            <textarea id="spaceToCamelInput" placeholder="텍스트를 입력하세요" class="input-box"></textarea>
+            <textarea id="spaceToCamelResult" placeholder="결과" class="result-box"></textarea>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>띄어쓰기 → 스네이크 케이스</h2>
+        <div class="input-result-row">
+            <textarea id="spaceToSnakeInput" placeholder="텍스트를 입력하세요" class="input-box"></textarea>
+            <textarea id="spaceToSnakeResult" placeholder="결과" class="result-box"></textarea>
+        </div>
+    </div>
+</body>
+</html>
