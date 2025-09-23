@@ -1,50 +1,116 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>이미지 클립보드 복사 및 저장</title>
+    <title>이미지 복사</title>
     <style>
-        #image-container {
-            margin: 20px;
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
         }
-        img {
-            max-width: 100%;
+        textarea {
+            width: 100%;
+            height: 200px;
+            font-family: monospace;
+            margin-top: 10px;
+        }
+        #image-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        #image-container .img-wrapper {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #image-container .img-wrapper:hover {
+            transform: scale(1.1); /* 이미지 확대 효과 */
+        }
+        #image-container img {
+            width: 100%;
+            max-width: 200px;
             height: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        #image-container .img-wrapper.transparent {
+            background-color: transparent; /* 기본 배경은 투명 */
+        }
+        #image-container .img-wrapper.white-background {
+            background-color: white; /* 배경색을 흰색으로 설정 */
         }
     </style>
 </head>
 <body>
-    <div id="image-container">
-        <img id="image" src="C:\Users\User\Pictures\2f8b42af483563e81f269c55a81f8d55c37d537a8f2c6f426591be6b8dc7b36a.png" alt="이미지">
-    </div>
-    <button id="copy-button">클립보드에 복사</button>
-    <button id="download-button">이미지 저장</button>
+    <button onclick="window.open('https://e.kakao.com/', '_blank');">카카오 이모티콘샵</button>
+    <h1>이미지 추출 및 복사</h1>
+    <p>이미지를 클릭하면 클립보드에 복사되며, 배경은 하얗게 설정됩니다.</p>
+    
+    <!-- 체크박스 추가 -->
+    <label>
+        <input type="checkbox" id="white-background-checkbox"> 하얀 배경 적용
+    </label>
+
+    <textarea id="html-input" placeholder="여기에 body element를 코드를 붙여넣으세요"></textarea>
+    <button id="extract-images">이미지 추출</button>
+    <h2>추출된 이미지:</h2>
+    <div id="image-container">여기에 이미지가 표시됩니다...</div>
 
     <script>
-        const copyButton = document.getElementById('copy-button');
-        const downloadButton = document.getElementById('download-button');
-        const image = document.getElementById('image');
+        document.getElementById('extract-images').addEventListener('click', () => {
+            const htmlInput = document.getElementById('html-input').value; 
+            const imageContainer = document.getElementById('image-container');
+            imageContainer.innerHTML = ''; 
 
-        // 클립보드에 이미지 복사 기능
-        copyButton.addEventListener('click', async () => {
-            try {
-                const response = await fetch(image.src);
-                const blob = await response.blob();
-                const item = new ClipboardItem({ 'image/png': blob });
-                await navigator.clipboard.write([item]);
-                alert('이미지가 클립보드에 복사되었습니다!');
-            } catch (error) {
-                console.error('클립보드 복사 실패:', error);
+            if (!htmlInput) {
+                alert('body element를 입력해주세요.');
+                return;
             }
-        });
 
-        // 이미지 저장 기능
-        downloadButton.addEventListener('click', () => {
-            const a = document.createElement('a');
-            a.href = image.src;
-            a.download = 'downloaded_image.png'; // 저장할 파일 이름
-            a.click(); // 클릭 이벤트로 다운로드 시작
+            // 체크박스 상태 확인
+            const isWhiteBackground = document.getElementById('white-background-checkbox').checked;
+
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlInput, 'text/html');
+                const imgTags = doc.querySelectorAll('img');
+                if (imgTags.length === 0) {
+                    imageContainer.innerHTML = '이미지가 없습니다.';
+                    return;
+                }
+
+                imgTags.forEach(img => {
+                    const imgWrapper = document.createElement('div');
+                    imgWrapper.classList.add('img-wrapper');
+                    
+                    // 체크박스 상태에 따라 배경색 설정
+                    if (isWhiteBackground) {
+                        imgWrapper.classList.add('white-background'); // 하얀 배경
+                    } else {
+                        imgWrapper.classList.add('transparent'); // 투명 배경
+                    }
+
+                    const imgElement = document.createElement('img');
+                    imgElement.src = img.src;
+                    imgElement.alt = '추출된 이미지';
+
+                    // 예외 처리: 특정 이미지는 제외
+                    if (img.src.includes("img_send.png") || img.src.includes("thumb_empty.png")) {
+                        console.log(`예외 이미지: ${img.src}`);
+                        return; 
+                    }
+
+                    imgWrapper.appendChild(imgElement);
+                    imageContainer.appendChild(imgWrapper);
+                });
+            } catch (error) {
+                console.error('오류 발생:', error);
+                imageContainer.innerHTML = '오류가 발생했습니다.';
+            }
         });
     </script>
 </body>
