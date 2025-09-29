@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>문자 → 유니코드 표현기</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; padding: 20px; }
+    textarea, pre, input { width: 100%; font-family: monospace; margin-top: 10px; }
+    input, .output-box { width: 100%; font-family: monospace; margin-top: 10px; }
+    button { margin-top: 10px; padding: 8px 16px; }
+    .output-box {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin: 10px 0;
+      background-color: #f9f9f9;
+      font-size: 1.1em;
+    }
+    .label { font-weight: bold; margin-bottom: 6px; }
+  </style>
+  <script>
+    function encodeUnicode() {
+      const input = document.getElementById("textInput").value;
+      const chars = Array.from(input);
+
+      const slashU = chars.map(c => `/u${c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}`).join('');
+      const backslashU = chars.map(c => `\\u${c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}`).join('');
+      const uPlus = chars.map(c => `U+${c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}`).join(' ');
+      const htmlHex = chars.map(c => `&#x${c.codePointAt(0).toString(16).toUpperCase()};`).join('');
+      const htmlDec = chars.map(c => `&#${c.codePointAt(0)};`).join('');
+
+      document.getElementById("slashUResult").textContent = slashU;
+      document.getElementById("backslashUResult").textContent = backslashU;
+      document.getElementById("uPlusResult").textContent = uPlus;
+      document.getElementById("htmlHexResult").textContent = htmlHex;
+      document.getElementById("htmlDecResult").textContent = htmlDec;
+    }
+
+    function decodeUnicode() {
+      const input = document.getElementById("unicodeInput").value;
+
+      const result = input
+        .replace(/\/u([0-9a-fA-F]{4})/g, (_, hex) => decodeHex(hex))
+        .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => decodeHex(hex))
+        .replace(/U\+([0-9a-fA-F]{4})/g, (_, hex) => decodeHex(hex))
+        .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => decodeHex(hex))
+        .replace(/&#(\d+);/g, (_, dec) => decodeDec(dec));
+
+      document.getElementById("decodeResult").textContent = result;
+    }
+
+    function decodeHex(hex) {
+      const code = parseInt(hex, 16);
+      return isNaN(code) ? '�' : String.fromCodePoint(code);
+    }
+
+    function decodeDec(dec) {
+      const code = parseInt(dec, 10);
+      return isNaN(code) ? '�' : String.fromCodePoint(code);
+    }
+
+    function copyToClipboard(id) {
+      const text = document.getElementById(id).textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("복사 완료!");
+      });
+    }
+  </script>
+</head>
+<body>
+  <h2>1. 유니코드 표현 → 문자 복호화</h2>
+  <textarea id="unicodeInput" rows="4" placeholder="예: /uc5c6는말도 \uc5c6고 U+C5C6도 있고 &#xC5C6;도 있고 &#50502;도 있다."></textarea>
+  <button onclick="decodeUnicode()">복호화</button>
+  <div id="decodeResult" class="output-box" onclick="copyToClipboard('decodeResult')">복호화된 결과가 여기에 표시됩니다</div>
+
+  <h1>2. 문자 → 유니코드 표현기</h1>
+  <input type="text" id="textInput" placeholder="예: ㅁㄴㅇ">
+  <button onclick="encodeUnicode()">변환</button>
+
+  <div class="output-box" onclick="copyToClipboard('slashUResult')">
+    <div class="label">/u 표현:</div>
+    <div id="slashUResult">/uXXXX/uXXXX/...</div>
+  </div>
+
+  <div class="output-box" onclick="copyToClipboard('backslashUResult')">
+    <div class="label">\\u 표현:</div>
+    <div id="backslashUResult">\\uXXXX\\uXXXX\\...</div>
+  </div>
+
+  <div class="output-box" onclick="copyToClipboard('uPlusResult')">
+    <div class="label">U+ 표현:</div>
+    <div id="uPlusResult">U+XXXX U+XXXX ...</div>
+  </div>
+
+  <div class="output-box" onclick="copyToClipboard('htmlHexResult')">
+    <div class="label">HTML Hex 표현:</div>
+    <div id="htmlHexResult">&#xXXXX;&#xXXXX;...</div>
+  </div>
+
+  <div class="output-box" onclick="copyToClipboard('htmlDecResult')">
+    <div class="label">HTML Decimal 표현:</div>
+    <div id="htmlDecResult">&#DDDD;&#DDDD;...</div>
+  </div>
+</body>
+</html>
