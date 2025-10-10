@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>UTF-8 변환기</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h1 { color: #333; }
+    textarea {
+      width: 100%;
+      height: 100px;
+      font-size: 16px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .output {
+      margin-top: 20px;
+      background: #f4f4f4;
+      padding: 10px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      cursor: pointer;
+      border: 1px solid #ccc;
+    }
+    .copied {
+      background-color: #d4edda;
+      border-color: #c3e6cb;
+    }
+    h2 { margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <h1>UTF-8 → 2진수 & 16진수 변환기</h1>
+  <p>텍스트를 입력하면 자동으로 변환됩니다.<br>결과를 클릭하면 복사돼요 ✂️</p>
+  <textarea id="inputText" placeholder="여기에 텍스트를 입력하세요..."></textarea>
+
+  <h2>2진수 결과:</h2>
+  <div id="binaryOutput" class="output" onclick="copyToClipboard('binaryOutput')">결과가 여기에 표시됩니다</div>
+
+  <h2>16진수 결과:</h2>
+  <div id="hexOutput" class="output" onclick="copyToClipboard('hexOutput')">결과가 여기에 표시됩니다</div>
+
+  <script>
+    const input = document.getElementById('inputText');
+    const binaryOutput = document.getElementById('binaryOutput');
+    const hexOutput = document.getElementById('hexOutput');
+
+    input.addEventListener('input', () => {
+      const text = input.value;
+      const encoder = new TextEncoder();
+      const bytes = encoder.encode(text);
+
+      const binary = Array.from(bytes)
+        .map(b => b.toString(2).padStart(8, '0'))
+        .join(' ');
+      const hex = Array.from(bytes)
+        .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+        .join(' ');
+
+      binaryOutput.textContent = binary || '결과가 여기에 표시됩니다';
+      hexOutput.textContent = hex || '결과가 여기에 표시됩니다';
+      binaryOutput.classList.remove('copied');
+      hexOutput.classList.remove('copied');
+    });
+
+    function copyToClipboard(id) {
+      const el = document.getElementById(id);
+      const text = el.textContent;
+      if (text && text !== '결과가 여기에 표시됩니다') {
+        navigator.clipboard.writeText(text).then(() => {
+          el.classList.add('copied');
+          el.textContent = '✅ 복사 완료! 다시 입력하면 결과가 갱신돼요.';
+          setTimeout(() => {
+            input.dispatchEvent(new Event('input'));
+          }, 1500);
+        });
+      }
+    }
+  </script>
+</body>
+</html>

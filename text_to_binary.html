@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>2진수/16진수 → UTF-8 변환기</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h1 { color: #333; }
+    textarea {
+      width: 100%;
+      height: 100px;
+      font-size: 16px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .output {
+      margin-top: 20px;
+      background: #f4f4f4;
+      padding: 10px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      cursor: pointer;
+      border: 1px solid #ccc;
+    }
+    .copied {
+      background-color: #d4edda;
+      border-color: #c3e6cb;
+    }
+    h2 { margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <h1>2진수/16진수 → UTF-8 변환기</h1>
+  <p>공백으로 구분된 2진수 또는 16진수를 입력하면 UTF-8 텍스트로 변환됩니다.<br>결과를 클릭하면 복사돼요 ✂️</p>
+  <textarea id="inputText" placeholder="예: 11101100 10000100 10111000 또는 EC 84 B8"></textarea>
+
+  <h2>UTF-8 디코딩 결과:</h2>
+  <div id="output" class="output" onclick="copyToClipboard()">결과가 여기에 표시됩니다</div>
+
+  <script>
+    const input = document.getElementById('inputText');
+    const output = document.getElementById('output');
+
+    input.addEventListener('input', () => {
+      const raw = input.value.trim();
+      if (!raw) {
+        output.textContent = '결과가 여기에 표시됩니다';
+        output.classList.remove('copied');
+        return;
+      }
+
+      let bytes = [];
+
+      // 2진수인지 16진수인지 자동 감지
+      const isBinary = raw.split(/\s+/).every(b => /^[01]{8}$/.test(b));
+      const isHex = raw.split(/\s+/).every(h => /^[0-9A-Fa-f]{2}$/.test(h));
+
+      if (isBinary) {
+        bytes = raw.split(/\s+/).map(b => parseInt(b, 2));
+      } else if (isHex) {
+        bytes = raw.split(/\s+/).map(h => parseInt(h, 16));
+      } else {
+        output.textContent = '⚠️ 올바른 2진수(8자리) 또는 16진수(2자리)만 입력해주세요.';
+        return;
+      }
+
+      try {
+        const decoder = new TextDecoder();
+        const decoded = decoder.decode(new Uint8Array(bytes));
+        output.textContent = decoded || '(디코딩 결과 없음)';
+        output.classList.remove('copied');
+      } catch (e) {
+        output.textContent = '⚠️ UTF-8 디코딩에 실패했습니다.';
+      }
+    });
+
+    function copyToClipboard() {
+      const text = output.textContent;
+      if (text && text !== '결과가 여기에 표시됩니다') {
+        navigator.clipboard.writeText(text).then(() => {
+          output.classList.add('copied');
+          output.textContent = '✅ 복사 완료! 다시 입력하면 결과가 갱신돼요.';
+          setTimeout(() => {
+            input.dispatchEvent(new Event('input'));
+          }, 1500);
+        });
+      }
+    }
+  </script>
+</body>
+</html>
