@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>깨진 한글 복구 도구</title>
+    <!-- Tailwind CSS CDN 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-blue': '#3b82f6',
+                        'dark-bg': '#1f2937',
+                        'card-bg': '#374151',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 스크롤바 스타일링 */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+            border-radius: 10px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background-color: #1f2937;
+        }
+    </style>
+</head>
+<body class="bg-dark-bg min-h-screen p-4 sm:p-8 flex flex-col items-center font-sans text-gray-100">
+
+    <!-- 제목 및 설명 -->
+    <header class="text-center mb-8">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-primary-blue mb-2">
+            깨진 한글 (똠방각하) 복구기
+        </h1>
+        <p class="text-gray-400">
+            ISO-8859-1로 잘못 인코딩된 UTF-8 문자열을 원래대로 복원합니다.
+        </p>
+    </header>
+
+    <main class="w-full max-w-4xl space-y-6">
+
+        <!-- 1. 깨진 한글 입력란 -->
+        <section class="bg-card-bg p-5 rounded-xl shadow-lg">
+            <label for="brokenText" class="block text-xl font-semibold mb-3 text-red-300">
+                1. 깨진 한글 입력 (예: ë©ì¼ ë³´ë´ë...)
+            </label>
+            <textarea
+                id="brokenText"
+                rows="8"
+                class="w-full p-4 bg-gray-700 text-lg text-white border border-gray-600 rounded-lg focus:ring-primary-blue focus:border-primary-blue outline-none transition duration-150"
+                placeholder="여기에 깨진 한글 문자열을 붙여넣으세요. 입력 즉시 복구됩니다."
+                oninput="processText()"
+            ></textarea>
+        </section>
+
+        <!-- 2. 정상 복원된 란 (클릭하여 복사 기능 포함) -->
+        <section class="bg-card-bg p-5 rounded-xl shadow-lg relative">
+            <label for="fixedText" class="block text-xl font-semibold mb-3 text-green-300">
+                2. 정상 복원된 한글 (클릭하여 복사)
+            </label>
+            
+            <div id="fixedTextContainer"
+                 class="relative cursor-pointer"
+                 onclick="copyToClipboard()">
+                
+                <textarea
+                    id="fixedText"
+                    rows="8"
+                    readonly
+                    class="w-full p-4 bg-gray-700 text-lg text-white border border-gray-600 rounded-lg resize-none pointer-events-none opacity-90"
+                    placeholder="복원된 결과가 여기에 표시됩니다."
+                ></textarea>
+                
+                <!-- 복사 알림 메시지 -->
+                <div id="copyMessage" 
+                     class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-primary-blue text-white py-2 px-4 rounded-full shadow-xl opacity-0 transition-opacity duration-300 pointer-events-none text-sm font-medium">
+                    클립보드에 복사 완료!
+                </div>
+            </div>
+
+            <!-- 현재 복원 예시 표시 -->
+            <p class="mt-4 text-sm text-gray-400">
+                현재 예시: <span class="font-mono text-red-300">ë©ì¼ ë³´ë´ë ì¬ë ì´ë¦</span>  $\rightarrow$  <span class="text-green-300">메일 보내는 사람 이름</span>
+            </p>
+
+        </section>
+    </main>
+
+    <script>
+        // 전역 상수 및 변수 정의
+        const brokenTextarea = document.getElementById('brokenText');
+        const fixedTextarea = document.getElementById('fixedText');
+        const copyMessage = document.getElementById('copyMessage');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // 핵심 복원 로직
+        /**
+         * ISO-8859-1로 깨진 UTF-8 문자열을 정상적으로 복구합니다.
+         * @param {string} brokenString - 깨진 문자열 (예: 'ë©ì¼')
+         * @returns {string} - 복구된 문자열 (예: '메일')
+         */
+        function fixBrokenKorean(brokenString) {
+            try {
+                // 1. 깨진 문자열을 ISO-8859-1 (Latin-1) 바이트 시퀀스로 재해석합니다.
+                //    'ë' 문자가 사실은 원본 한글의 UTF-8 바이트 중 하나였기 때문에,
+                //    charCodeAt(0)을 사용해 그 바이트 값을 그대로 가져옵니다.
+                const iso88591Bytes = brokenString.split('').map(c => c.charCodeAt(0));
+
+                // 2. 이 바이트 값을 Uint8Array로 변환합니다.
+                const utf8Bytes = new Uint8Array(iso88591Bytes);
+
+                // 3. Uint8Array를 TextDecoder('utf-8')를 사용하여 올바른 UTF-8 문자열로 디코딩합니다.
+                const decoder = new TextDecoder('utf-8');
+                return decoder.decode(utf8Bytes);
+
+            } catch (error) {
+                console.error("복구 중 오류 발생:", error);
+                return "복구 실패: 유효하지 않은 문자열 형식입니다.";
+            }
+        }
+
+        // 입력 시 실시간 처리 함수
+        function processText() {
+            const brokenInput = brokenTextarea.value;
+            const fixedOutput = fixBrokenKorean(brokenInput);
+            fixedTextarea.value = fixedOutput;
+        }
+
+        // 복사 기능 함수
+        function copyToClipboard() {
+            if (fixedTextarea.value) {
+                // execCommand('copy')는 IFrame 환경에서 가장 안정적인 복사 방법입니다.
+                fixedTextarea.select();
+                fixedTextarea.setSelectionRange(0, 99999); // 모바일 지원
+                try {
+                    document.execCommand('copy');
+                    
+                    // 성공 메시지 표시
+                    copyMessage.classList.remove('opacity-0');
+                    copyMessage.classList.add('opacity-100');
+
+                    // 1.5초 후 메시지 숨김
+                    setTimeout(() => {
+                        copyMessage.classList.remove('opacity-100');
+                        copyMessage.classList.add('opacity-0');
+                    }, 1500);
+
+                } catch (err) {
+                    console.error('클립보드 복사 실패:', err);
+                    alert('복사 실패: 브라우저 권한을 확인해주세요.'); // 사용자 정의 알림으로 대체 가능
+                }
+            } else {
+                console.log("복사할 내용이 없습니다.");
+            }
+        }
+        
+        // 초기 로드 시 예시 텍스트 설정
+        window.onload = function() {
+            const exampleText = 'ë©ì¼ ë³´ë´ë ì¬ë ì´ë¦ :: applicationPropertiesìì ê´ë¦¬íë¯ë¡ íê¸ ë³ìë ì¬ê¸°ì ì²ë¦¬';
+            brokenTextarea.value = exampleText;
+            processText(); // 즉시 처리
+        };
+
+    </script>
+</body>
+</html>
