@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>깨진 한글 복구 도구</title>
-    <!-- Tailwind CSS CDN 로드 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -38,9 +37,9 @@
 </head>
 <body class="bg-dark-bg min-h-screen p-4 sm:p-8 flex flex-col items-center font-sans text-gray-100">
 
-    <!-- 제목 및 설명 -->
     <header class="text-center mb-8">
-        <h1 class="text-3xl sm:text-4xl font-extrabold text-primary-blue mb-2">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-primary-blue mb-2 flex items-center justify-center">
+            <span class="mr-2 text-yellow-400">🛠️</span>
             깨진 한글 (똠방각하) 복구기
         </h1>
         <p class="text-gray-400">
@@ -50,10 +49,9 @@
 
     <main class="w-full max-w-4xl space-y-6">
 
-        <!-- 1. 깨진 한글 입력란 -->
         <section class="bg-card-bg p-5 rounded-xl shadow-lg">
             <label for="brokenText" class="block text-xl font-semibold mb-3 text-red-300">
-                1. 깨진 한글 입력 (예: ë©ì¼ ë³´ë´ë...)
+                1. 깨진 한글 입력 (예: ë©”ì¼ ë³´ë‚´ëŠ”...)
             </label>
             <textarea
                 id="brokenText"
@@ -62,9 +60,32 @@
                 placeholder="여기에 깨진 한글 문자열을 붙여넣으세요. 입력 즉시 복구됩니다."
                 oninput="processText()"
             ></textarea>
+
+            <div class="flex flex-wrap gap-4 mt-4 items-center">
+                <div class="flex items-center space-x-2">
+                    <label for="brokenEncoding" class="text-sm font-medium text-gray-300">깨진 인코딩:</label>
+                    <select id="brokenEncoding" onchange="processText()" class="p-2 bg-gray-600 border border-gray-500 rounded text-sm text-white focus:ring-primary-blue focus:border-primary-blue">
+                        <option value="ISO-8859-1">ISO-8859-1</option>
+                        <option value="EUC-KR">EUC-KR</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label for="originalEncoding" class="text-sm font-medium text-gray-300">원본 인코딩:</label>
+                    <select id="originalEncoding" onchange="processText()" class="p-2 bg-gray-600 border border-gray-500 rounded text-sm text-white focus:ring-primary-blue focus:border-primary-blue">
+                        <option value="UTF-8">UTF-8</option>
+                        <option value="EUC-KR">EUC-KR</option>
+                        <option value="MS949">MS949</option>
+                    </select>
+                </div>
+                <button onclick="clearTextareas()" class="flex-shrink-0 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-150">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    모두 지우기
+                </button>
+            </div>
         </section>
 
-        <!-- 2. 정상 복원된 란 (클릭하여 복사 기능 포함) -->
         <section class="bg-card-bg p-5 rounded-xl shadow-lg relative">
             <label for="fixedText" class="block text-xl font-semibold mb-3 text-green-300">
                 2. 정상 복원된 한글 (클릭하여 복사)
@@ -82,62 +103,100 @@
                     placeholder="복원된 결과가 여기에 표시됩니다."
                 ></textarea>
                 
-                <!-- 복사 알림 메시지 -->
                 <div id="copyMessage" 
                      class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-primary-blue text-white py-2 px-4 rounded-full shadow-xl opacity-0 transition-opacity duration-300 pointer-events-none text-sm font-medium">
                     클립보드에 복사 완료!
                 </div>
             </div>
 
-            <!-- 현재 복원 예시 표시 -->
             <p class="mt-4 text-sm text-gray-400">
-                현재 예시: <span class="font-mono text-red-300">ë©ì¼ ë³´ë´ë ì¬ë ì´ë¦</span>  $\rightarrow$  <span class="text-green-300">메일 보내는 사람 이름</span>
+                현재 예시: <span class="font-mono text-red-300">ë©”ì¼ ë³´ë‚´ëŠ” ì‚¬ëžŒ ì´ë¦„</span>  $\rightarrow$  <span class="text-green-300">메일 보내는 사람 이름</span>
             </p>
 
         </section>
     </main>
 
     <script>
-        // 전역 상수 및 변수 정의
+        // 전역 상수 선언 (DOM이 먼저 로드되었으므로 안전함)
         const brokenTextarea = document.getElementById('brokenText');
         const fixedTextarea = document.getElementById('fixedText');
         const copyMessage = document.getElementById('copyMessage');
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const brokenEncodingSelect = document.getElementById('brokenEncoding');
+        const originalEncodingSelect = document.getElementById('originalEncoding');
 
-        // 핵심 복원 로직
         /**
          * ISO-8859-1로 깨진 UTF-8 문자열을 정상적으로 복구합니다.
-         * @param {string} brokenString - 깨진 문자열 (예: 'ë©ì¼')
-         * @returns {string} - 복구된 문자열 (예: '메일')
          */
-        function fixBrokenKorean(brokenString) {
+        function fixBrokenKorean(brokenString, brokenEnc, originalEnc) {
+            if (!brokenString) return "";
+            
             try {
-                // 1. 깨진 문자열을 ISO-8859-1 (Latin-1) 바이트 시퀀스로 재해석합니다.
-                //    'ë' 문자가 사실은 원본 한글의 UTF-8 바이트 중 하나였기 때문에,
-                //    charCodeAt(0)을 사용해 그 바이트 값을 그대로 가져옵니다.
-                const iso88591Bytes = brokenString.split('').map(c => c.charCodeAt(0));
+                // brokenEnc와 originalEnc는 onchange 이벤트로 인해 항상 정의된 값을 가집니다.
 
-                // 2. 이 바이트 값을 Uint8Array로 변환합니다.
-                const utf8Bytes = new Uint8Array(iso88591Bytes);
+                // 1. ISO-8859-1로 잘못 해석된 UTF-8 복구 (가장 흔한 똠방각하 패턴)
+                if (brokenEnc === 'ISO-8859-1' && originalEnc === 'UTF-8') {
+                    const iso88591Bytes = brokenString.split('').map(c => c.charCodeAt(0));
+                    const utf8Bytes = new Uint8Array(iso88591Bytes);
+                    const decoder = new TextDecoder('utf-8');
+                    return decoder.decode(utf8Bytes);
+                }
 
-                // 3. Uint8Array를 TextDecoder('utf-8')를 사용하여 올바른 UTF-8 문자열로 디코딩합니다.
-                const decoder = new TextDecoder('utf-8');
-                return decoder.decode(utf8Bytes);
-
+                // 참고: 브라우저 환경에서 TextEncoder/TextDecoder만으로는 다른 인코딩 조합을 처리하기 어렵습니다.
+                // 완벽한 복구를 위해서는 외부 인코딩 라이브러리(예: iconv-lite)가 필요합니다.
+                return "지원하지 않는 인코딩 조합입니다. (ISO-8859-1 -> UTF-8 만 지원)";
+                
             } catch (error) {
                 console.error("복구 중 오류 발생:", error);
-                return "복구 실패: 유효하지 않은 문자열 형식입니다.";
+                // "복구 실패: 유효하지 않은 문자열 형식입니다."
+                return `복구 실패: ${error.message}`;
             }
         }
 
-        // 입력 시 실시간 처리 함수
+        /**
+         * Unicode 이스케이프 시퀀스 (\uXXXX)를 일반 문자로 변환합니다.
+         * @param {string} unicodeString - Unicode 이스케이프 문자열 (예: '\uB0B4\uC5D0\uC11C')
+         * @returns {string} - 변환된 문자열 (예: '내에서')
+         */
+        function decodeUnicodeEscapes(unicodeString) {
+            // \uXXXX 패턴을 찾아서 콜백 함수로 처리합니다.
+            return unicodeString.replace(/\\u([\dA-Fa-f]{4})/g, (match, hex) => {
+                // 16진수 값을 정수로 변환하여 해당 코드 포인트의 문자를 반환합니다.
+                return String.fromCharCode(parseInt(hex, 16));
+            });
+        }
+        
         function processText() {
-            const brokenInput = brokenTextarea.value;
-            const fixedOutput = fixBrokenKorean(brokenInput);
-            fixedTextarea.value = fixedOutput;
+        const brokenInput = brokenTextarea.value;
+        const brokenEnc = brokenEncodingSelect.value;
+        const originalEnc = originalEncodingSelect.value;
+        
+        let fixedOutput = brokenInput;
+
+        // A. Unicode 이스케이프 시퀀스 (\uXXXX) 형태인지 확인하고 처리
+        if (brokenInput.includes('\\u')) {
+            fixedOutput = decodeUnicodeEscapes(brokenInput);
+        
+        // B. 일반적인 인코딩 깨짐 (똠방각하) 처리
+        } else {
+            fixedOutput = fixBrokenKorean(brokenInput, brokenEnc, originalEnc);
+        }
+        
+        fixedTextarea.value = fixedOutput;
         }
 
-        // 복사 기능 함수
+        /**
+         * 텍스트 지우기 함수
+         */
+        function clearTextareas() {
+            brokenTextarea.value = '';
+            fixedTextarea.value = '';
+            processText(); // 지우고 나면 결과도 비워줍니다.
+            brokenTextarea.focus(); // 입력란으로 포커스 이동
+        }
+
+        /**
+         * 복사 기능 함수
+         */
         function copyToClipboard() {
             if (fixedTextarea.value) {
                 // execCommand('copy')는 IFrame 환경에서 가장 안정적인 복사 방법입니다.
@@ -158,16 +217,21 @@
 
                 } catch (err) {
                     console.error('클립보드 복사 실패:', err);
-                    alert('복사 실패: 브라우저 권한을 확인해주세요.'); // 사용자 정의 알림으로 대체 가능
+                    alert('복사 실패: 브라우저 권한을 확인해주세요.');
                 }
             } else {
                 console.log("복사할 내용이 없습니다.");
             }
         }
         
-        // 초기 로드 시 예시 텍스트 설정
+        // 초기 로드 시 예시 텍스트 설정 및 초기 처리
         window.onload = function() {
-            const exampleText = 'ë©ì¼ ë³´ë´ë ì¬ë ì´ë¦ :: applicationPropertiesìì ê´ë¦¬íë¯ë¡ íê¸ ë³ìë ì¬ê¸°ì ì²ë¦¬';
+            // 사장님께서 요청하신 텍스트를 초기 예시로 설정합니다.
+            const exampleText = '#**** Keystore \uB0B4\uC5D0\uC11C \uC778\uC99D\uC11C\uB97C \uC2DD\uBCC4\uD558\uB294 \uBCC4\uCE6D';
+            
+            // 일반적인 똠방각하 예시를 유지하려면 아래 줄을 사용하세요.
+            // const exampleText = 'ë©”ì¼ ë³´ë‚´ëŠ” ì‚¬ëžŒ ì´ë¦„ :: applicationPropertiesì—ì„œ ê´€ë¦¬í•˜ë¯€ë¡œ í•œê¸€ ë³€ìˆ ëŠ” ì—¬ê¸°ì„œ ì²˜ë¦¬';
+            
             brokenTextarea.value = exampleText;
             processText(); // 즉시 처리
         };
