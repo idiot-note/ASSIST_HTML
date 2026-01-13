@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES-256 API 테스터 (저장 기능 포함)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 380px;
+        }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
+        
+        /* 설정 영역 스타일 */
+        .config-box {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+        .config-box label {
+            display: block;
+            margin-top: 8px;
+            margin-bottom: 4px;
+            font-weight: bold;
+            color: #555;
+        }
+        .config-box label:first-child { margin-top: 0; }
+        .config-box input, .config-box select {
+            margin-bottom: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus { border-color: #007bff; outline: none; }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #0056b3; }
+
+        /* 결과 영역 스타일 */
+        #result-area {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e2e6ea;
+            border-radius: 6px;
+            cursor: pointer;
+            display: none;
+            text-align: center;
+            border: 2px dashed #adb5bd;
+            word-break: break-all;
+        }
+        #result-area:hover { background-color: #d1d7dd; border-color: #6c757d; }
+        #result-text { font-size: 18px; font-weight: bold; color: #212529; }
+        .tooltip { font-size: 12px; color: #666; margin-top: 8px; }
+
+        /* Toast (Snackbar) 스타일 */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            margin-left: -125px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 30px;
+            font-size: 14px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            opacity: 0;
+            transition: opacity 0.5s, bottom 0.5s;
+        }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>AES-256 API 테스터</h2>
+
+        <div class="config-box">
+            <label>🌐 API URL (통신 주소):</label>
+            <input type="text" id="api-url" placeholder="http://ip:port/path">
+
+            <label>📡 HTTP Method:</label>
+            <select id="http-method">
+                <option value="POST" selected>POST</option>
+                <option value="PUT">PUT</option>
+                <option value="GET">GET</option>
+                <option value="DELETE">DELETE</option>
+            </select>
+
+            <label>🔐 AES Key (32자 필수):</label>
+            <input type="text" id="aes-key" maxlength="32" placeholder="32자리 키 입력">
+            
+            <label>Request Key (ID):</label>
+            <input type="text" id="key-id" value="userId">
+            
+            <label>Request Key (PWD):</label>
+            <input type="text" id="key-pwd" value="pwd">
+
+            <label>Response Path:</label>
+            <input type="text" id="res-path" value="body.data.LEVEL">
+        </div>
+
+        <input type="text" id="input-id" placeholder="아이디 입력">
+        <input type="password" id="input-pwd" placeholder="비밀번호 입력 (암호화되어 전송됨)">
+        
+        <button id="send-btn" onclick="processRequest()">암호화 및 전송</button>
+
+        <div id="result-area" title="클릭하여 복사">
+            <div id="result-text"></div>
+            <div class="tooltip">📋 클릭하면 결과가 복사됩니다</div>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        // --- [1] 로컬스토리지 관리 영역 ---
+        const STORAGE_KEY = 'aesApiTesterConfig_v1';
+        
+        // 저장할 입력창들의 ID 목록 (비밀번호 input-pwd는 보안상 제외)
+        const configIds = ['api-url', 'http-method', 'aes-key', 'key-id', 'key-pwd', 'res-path', 'input-id'];
+
+        function saveSettings() {
+            const data = {};
+            configIds.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    data[id] = element.value;
+                }
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function loadSettings() {
+            const savedString = localStorage.getItem(STORAGE_KEY);
+            if (savedString) {
+                const data = JSON.parse(savedString);
+                configIds.forEach(id => {
+                    if (data[id] !== undefined) {
+                        const element = document.getElementById(id);
+                        if (element) element.value = data[id];
+                    }
+                });
+            } else {
+                // 저장된 값이 없을 때 기본값 설정 (처음 실행 시)
+                document.getElementById('api-url').value = "https://api.example.com/login";
+                document.getElementById('aes-key').value = "01234567890123456789012345678901";
+            }
+        }
+
+        // 입력창에 변경이 일어날 때마다 자동 저장 이벤트 연결
+        configIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', saveSettings);
+            }
+        });
+
+        // 페이지 로드 시 설정 불러오기
+        window.addEventListener('DOMContentLoaded', loadSettings);
+
+
+        // --- [2] 기존 로직 및 암호화 영역 ---
+        
+        // 엔터키 감지 설정
+        document.getElementById("input-id").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") processRequest();
+        });
+        document.getElementById("input-pwd").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") processRequest();
+        });
+
+        async function processRequest() {
+            const inputId = document.getElementById('input-id').value;
+            const inputPwd = document.getElementById('input-pwd').value;
+            
+            const apiUrl = document.getElementById('api-url').value;
+            const httpMethod = document.getElementById('http-method').value;
+            const aesKeyStr = document.getElementById('aes-key').value;
+            const keyId = document.getElementById('key-id').value;
+            const keyPwd = document.getElementById('key-pwd').value;
+            const pathString = document.getElementById('res-path').value;
+
+            if (!apiUrl) {
+                showToast("⚠️ API URL을 입력해주세요.");
+                document.getElementById('api-url').focus();
+                return;
+            }
+
+            if (aesKeyStr.length !== 32) {
+                alert(`암호화 키는 반드시 32자리여야 합니다.\n(현재 길이: ${aesKeyStr.length}자)`);
+                return;
+            }
+
+            let encryptedPwd = "";
+            try {
+                const key = CryptoJS.enc.Utf8.parse(aesKeyStr);
+                const ivStr = aesKeyStr.substring(0, 16);
+                const iv = CryptoJS.enc.Utf8.parse(ivStr);
+
+                const encrypted = CryptoJS.AES.encrypt(inputPwd, key, {
+                    iv: iv,
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7
+                });
+                
+                encryptedPwd = encrypted.toString();
+                console.log(`[설정] Method: ${httpMethod} | URL: ${apiUrl}`);
+
+            } catch (e) {
+                alert("암호화 중 오류 발생: " + e.message);
+                return;
+            }
+
+            const requestData = {};
+            requestData[keyId] = inputId;
+            requestData[keyPwd] = encryptedPwd;
+
+            console.log("전송할 데이터:", JSON.stringify(requestData, null, 2));
+
+            try {
+                // --- [테스트 모드] 실제 통신 대신 성공 응답 시뮬레이션 ---
+                // 실제 통신을 원하시면 아래 주석을 풀고 fetch 부분을 활성화하세요.
+                
+                console.log(`[통신 시뮬레이션] ${httpMethod} 방식으로 요청 전송됨`);
+                
+                // 가짜 응답 데이터
+                const jsonResponse = {
+                    "body": { "data": { "LEVEL": "1" } }
+                };
+
+                /* 실제 통신 코드 (필요시 주석 해제)
+                const fetchOptions = {
+                    method: httpMethod,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+                if (httpMethod !== 'GET') {
+                    fetchOptions.body = JSON.stringify(requestData);
+                }
+                const response = await fetch(apiUrl, fetchOptions);
+                if (!response.ok) throw new Error('Network response was not ok');
+                const jsonResponse = await response.json();
+                */
+
+                const resultValue = getDeepValue(jsonResponse, pathString);
+
+                if (resultValue !== undefined) {
+                    const finalMessage = `레벨은 ${resultValue}입니다.`;
+                    showResult(finalMessage);
+                } else {
+                    alert(`응답 데이터에서 경로(${pathString})를 찾을 수 없습니다.\n응답값: ${JSON.stringify(jsonResponse)}`);
+                }
+
+            } catch (error) {
+                console.error(error);
+                alert("통신 오류 발생: " + error.message);
+            }
+        }
+
+        function getDeepValue(obj, path) {
+            return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+        }
+
+        // --- [3] 결과 표시 및 안전한 복사 영역 ---
+
+        function showResult(text) {
+            const resultArea = document.getElementById('result-area');
+            const resultText = document.getElementById('result-text');
+            resultText.innerText = text;
+            resultArea.style.display = 'block';
+            
+            // 클릭 시 안전한 복사 함수 호출
+            resultArea.onclick = () => {
+                copyToClipboard(text);
+            };
+        }
+
+        // 안전한 복사 함수 (HTTPS, Localhost, File 프로토콜 모두 지원)
+        function copyToClipboard(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                // 최신 브라우저 방식
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast(`복사 완료: "${text}"`);
+                }).catch(err => {
+                    fallbackCopy(text);
+                });
+            } else {
+                // 구형 방식 (오류 해결)
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast(`복사 완료: "${text}"`);
+                } else {
+                    alert("복사에 실패했습니다.");
+                }
+            } catch (err) {
+                alert("복사 중 에러가 발생했습니다.");
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            if (!toast) return;
+
+            toast.innerText = message;
+            toast.className = "show";
+
+            setTimeout(function(){ 
+                toast.className = toast.className.replace("show", ""); 
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
